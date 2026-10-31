@@ -1,0 +1,14 @@
+# adc2can - 16 MB flash (ESP32-S3-WROOM-1-N16R8)
+# The firmware is ~1.2 MB, so each OTA app slot is 1.75 MB (room to grow); the web UI (LittleFS) needs ~150 kB, so its
+# partition is 384 kB; the rest - 12 MB - is the data logger.
+# "logs" is a raw partition (adc2can_log.cpp, its own sector format) with a custom subtype on purpose: PlatformIO
+# (buildfs / uploadfs) and tools/make_release.py take the LAST spiffs / fat / littlefs partition as the web UI, and
+# ota_manager the FIRST spiffs one - 0x99 keeps the logger out of all three, and a web UI update never touches the logs.
+# Name,     Type, SubType,  Offset,   Size,     Flags
+nvs,        data, nvs,      0x9000,   0x5000,
+otadata,    data, ota,      0xe000,   0x2000,
+ota_0,      app,  ota_0,    0x10000,  0x1C0000,
+ota_1,      app,  ota_1,    0x1D0000, 0x1C0000,
+spiffs,     data, spiffs,   0x390000, 0x60000,
+logs,       data, 0x99,     0x3F0000, 0xC00000,
+coredump,   data, coredump, 0xFF0000, 0x10000,

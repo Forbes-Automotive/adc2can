@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <title>adc2can</title>
+    <link rel="stylesheet" href="style.css?v=1.4.1">
+    <style>
+        /* adc2can additions on top of the shared theme */
+        .row-inline { display: flex; gap: 10px; flex-wrap: wrap; align-items: end; margin-bottom: 14px; }
+        .row-inline > .form-group { margin-bottom: 0; flex: 1 1 120px; }
+        .row-inline .narrow { flex: 0 1 130px; }
+        .row-inline .wide { flex: 2 1 220px; }
+        .row-inline > label.check { display: flex; gap: 6px; align-items: center; flex: 0 0 auto; padding-bottom: 10px; color: var(--text); }
+        .help { color: var(--muted); font-size: 12px; line-height: 1.5; margin-top: 6px; }
+        .help a, .alert-card a { color: var(--accent); }
+        .mono { font-family: ui-monospace, Consolas, monospace; font-size: 12px; }
+        .alert-card { border-color: rgba(255, 77, 94, .5); background: rgba(255, 77, 94, .08); color: var(--text); font-size: 14px; line-height: 1.5; }
+        .alert-card.warn { border-color: rgba(255, 176, 46, .5); background: rgba(255, 176, 46, .08); }
+        .alert-card b { color: var(--danger); }
+        .alert-card.warn b { color: var(--accent-2); }
+        /* sensor tiles */
+        .sensor-tile { position: relative; }
+        .sensor-tile .label { display: flex; justify-content: space-between; gap: 8px; }
+        .sensor-tile .label span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .sensor-tile .num { color: var(--muted); }
+        .sensor-tile .value { font-size: 28px; }
+        .sensor-tile .value.dim { color: var(--muted); }
+        .sensor-tile .sub { color: var(--muted); font-size: 12px; margin-top: 6px; font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; gap: 6px; flex-wrap: wrap; }
+        .sensor-tile.bad { border-color: rgba(255, 77, 94, .5); }
+        .sensor-tile.warn { border-color: rgba(255, 176, 46, .5); }
+        .pill.small { padding: 1px 8px; font-size: 11px; font-weight: 600; }
+        /* sensor editor rows */
+        .ch-row { border-top: 1px solid var(--line); padding: 14px 0 2px; }
+        .ch-row:first-child { border-top: none; padding-top: 0; }
+        .ch-row h3 { display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; margin: 0 0 10px; font-size: 14px; }
+        .ch-live { font-family: ui-monospace, Consolas, monospace; color: var(--accent); font-size: 13px; }
+        /* tables */
+        table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+        table.t th, table.t td { text-align: left; padding: 7px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+        table.t th { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; font-weight: 600; }
+        table.t td.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+        @media (max-width: 520px) { table.t th, table.t td { padding: 6px 4px; } } /* phone: the rails table fits without scrolling sideways */
+        .table-wrap { overflow-x: auto; }
+        .led { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--line); vertical-align: -1px; }
+        .led.on { background: var(--ok); box-shadow: 0 0 6px var(--ok); }
+        .led.bad { background: var(--danger); box-shadow: 0 0 6px var(--danger); }
+        .btn-sm { padding: 5px 10px; font-size: 12px; }
+        /* gauge readout (OpenHaldex's per-tile dial, tg-* styles from the shared style.css) */
+        .sensor-tile .tile-gauge { display: none; margin-top: 2px; }
+        .sensor-tile.as-gauge .tile-gauge { display: block; }
+        .sensor-tile.as-gauge .value { display: none; }
+        .sensor-tile .tile-gauge svg { max-width: 132px; }
+        .tg-tick { stroke: var(--accent-2); stroke-width: 2; }
+        .tile-gauge.bad .tg-fill { stroke: var(--danger); }
+        .gauge-opts { display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 8px 16px; }
+        .gauge-opt { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--text); }
+        .gauge-opt .tile-opt { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .gauge-opt input[type=number] { width: 64px; flex: 0 0 64px; padding: 5px 7px; font-size: 12px; }
+        /* logging */
+        .log-acts { white-space: nowrap; }
+        @media (max-width: 520px) { .log-acts { white-space: normal; display: flex; flex-direction: column; gap: 4px; } .log-acts .btn-sm { text-align: center; } .col-rec { display: none; } } /* phone: CSV / Raw / Delete stacked, no Records column */
+        .mem-bar { height: 10px; border-radius: 6px; background: var(--panel-2); border: 1px solid var(--line); overflow: hidden; margin: 6px 0 4px; }
+        .mem-bar div { height: 100%; background: var(--accent); width: 0; transition: width .4s; }
+        .rec-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--danger); margin-right: 6px; animation: recblink 1s infinite; vertical-align: 0; }
+        @keyframes recblink { 50% { opacity: .2; } }
+        .trend-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        @media (max-width: 760px) { .trend-grid { grid-template-columns: minmax(0, 1fr); } }
+        .trend { background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px 6px; position: relative; }
+        .trend-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; font-size: 13px; }
+        .trend-head b { font-size: 13px; color: var(--text); }
+        .trend-head .now { font-variant-numeric: tabular-nums; color: var(--text); font-weight: 700; font-size: 15px; }
+        .trend-sub { color: var(--muted); font-size: 11px; font-variant-numeric: tabular-nums; margin-top: 2px; }
+        .trend canvas { display: block; width: 100%; height: 150px; margin-top: 4px; touch-action: pan-y; }
+        .trend-tip { position: absolute; pointer-events: none; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 4px 8px; font-size: 12px; color: var(--text); white-space: nowrap; display: none; font-variant-numeric: tabular-nums; z-index: 2; }
+        .trend-tip .k { color: var(--muted); }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <header class="topbar">
+            <h1>adc2can</h1>
+            <div class="status-bar">
+                <span class="status-badge" id="bSensors">Sensors: --</span>
+                <span class="status-badge" id="bPower">Power: --</span>
+                <span class="status-badge" id="bCan">CAN: --</span>
+                <span class="status-badge" id="bGauge">Gauge: --</span>
+                <span class="status-badge" id="bLog">Log: --</span>
+                <span class="status-badge" id="bVer">v--</span>
+            </div>
+        </header>
+
+        <nav class="nav-tabs">
+            <button class="nav-tab active" data-page="dashboard">Dashboard</button>
+            <button class="nav-tab" data-page="sensors">Sensors</button>
+            <button class="nav-tab" data-page="logging">Logging</button>
+            <button class="nav-tab" data-page="rails">Rails &amp; Power</button>
+            <button class="nav-tab" data-page="can">CAN</button>
+            <button class="nav-tab" data-page="settings">Settings</button>
+            <button class="nav-tab" data-page="ota">OTA</button>
+        </nav>
+
+        <!-- ================= DASHBOARD ================= -->
+        <div class="page active" id="dashboard-page">
+            <section class="card alert-card" id="alertCard" hidden></section>
+            <section class="card">
+                <h2>Sensors</h2>
+                <div class="tiles" id="tiles"></div>
+                <div class="help">Each sensor plugs into a JST PA-3 socket: pin 1 = switched 5 V, pin 2 = signal (0-6.3 V), pin 3 = ground. The value is what goes out on CAN and what can2gauge shows as <b>ADC 1-8</b>. Set each one up on the <a href="#" data-goto="sensors">Sensors</a> tab.</div>
+            </section>
+            <section class="card">
+                <h2>Board</h2>
+                <div class="sysgrid">
+                    <div class="chip" id="cBus"><div class="k">Sensor 5 V bus</div><div class="v" id="vBus">--</div></div>
+                    <div class="chip" id="cVbat"><div class="k">Battery</div><div class="v" id="vVbat">--</div></div>
+                    <div class="chip" id="cCan"><div class="k">CAN</div><div class="v" id="vCan">--</div></div>
+                    <div class="chip" id="cGauge"><div class="k">Last from a gauge</div><div class="v" id="vGauge">--</div></div>
+                    <div class="chip" id="cAdc"><div class="k">ADC chips</div><div class="v" id="vAdc">--</div></div>
+                    <div class="chip" id="cRails"><div class="k">Sensor rails</div><div class="v" id="vRails">--</div></div>
+                </div>
+            </section>
+            <section class="card">
+                <h2>Display options</h2>
+                <p class="hint">Tick a sensor to show it as a dial gauge instead of a number (remembered in this browser). The two boxes are the dial's minimum and maximum, saved on the adc2can and sent to can2gauge with the rest of the sensor's settings, so a gauge page showing this sensor uses the same range. Blank = Auto, worked out from the sensor's scaling.</p>
+                <div class="gauge-opts" id="gaugeOpts"></div>
+            </section>
+        </div>
+
+        <!-- ================= LOGGING ================= -->
+        <div class="page" id="logging-page">
+            <section class="card" id="logCard">
+                <h2>Recorder</h2>
+                <div class="row-inline">
+                    <button class="btn primary" id="logStartBtn" style="flex:0 0 auto">Start Logging</button>
+                    <div class="form-group" style="flex:2 1 260px"><label>State</label><div id="logState" style="color:var(--text);font-size:15px;padding:10px 0">--</div></div>
+                </div>
+                <div class="row-inline">
+                    <div class="form-group narrow"><label>Rate</label><select id="log.rateHz"></select></div>
+                    <div class="form-group"><label>Start</label><select id="log.autoStart"><option value="0">When I press Start</option><option value="1">Automatically at power-up</option></select></div>
+                    <div class="form-group"><label>When the memory is full</label><select id="log.whenFull"><option value="0">Stop logging</option><option value="1">Overwrite the oldest data</option></select></div>
+                </div>
+                <label>Log memory</label>
+                <div class="mem-bar"><div id="memFill"></div></div>
+                <div class="help" id="memInfo" style="margin-top:0">--</div>
+                <div class="help">Every sensor's value (as sent on CAN), the valid / rail-fault flags and the battery voltage, at the chosen rate, in the board's own 12 MB log memory - kept through power cuts and web UI updates. "Automatically at power-up" starts a new log every time the car is switched on (no clock on the board: those logs are timed from power-up).</div>
+            </section>
+            <section class="card">
+                <h2>Logs</h2>
+                <div class="table-wrap">
+                    <table class="t">
+                        <thead><tr><th>Log</th><th>Started</th><th>Length</th><th>Rate</th><th class="col-rec">Records</th><th>Size</th><th></th></tr></thead>
+                        <tbody id="logRows"></tbody>
+                    </table>
+                </div>
+                <div class="row-inline" style="margin-top:14px"><button class="btn danger" id="logDeleteAll">Delete All Logs</button></div>
+                <div class="help"><b>CSV</b> opens in Excel / LibreOffice / any plotting tool: one row per record, time in seconds (and the date and time when the log was started from this page), one column per sensor in its units, then the battery and the flag bits. <b>Raw</b> is the log as stored on the board (.a2c).</div>
+            </section>
+            <section class="card">
+                <h2>Trends - last 10 minutes</h2>
+                <div class="trend-grid" id="trendGrid"></div>
+                <div class="help">One-second averages, kept on the board, so the last 10 minutes are here as soon as you open this tab - whether or not a log is recording. Amber lines are the sensor's low / high warning. Hover or touch a graph to read a value.</div>
+            </section>
+        </div>
+
+        <!-- ================= SENSORS ================= -->
+        <div class="page" id="sensors-page">
+            <section class="card">
+                <h2>Sensor channels</h2>
+                <div id="chList"></div>
+                <div class="help"><b>Linear:</b> value = scale &times; volts + offset (pick a preset for common senders). <b>Table:</b> up to 8 volts:value points, straight lines between them. <b>NTC:</b> a thermistor to its own 5 V rail through the board's pull-up R_PUn (fit 2.2k for a Bosch NTC); beta model, the 21k input divider is allowed for. <b>Ratiometric:</b> the reading is scaled to a 5.000 V supply using that sensor's measured rail. Leave it off for sensors with their own supply (a wideband controller output, an EGT amplifier). The name (14 characters) and unit go to can2gauge as the gauge label. Changes save as you make them and go out on CAN straight away.</div>
+            </section>
+        </div>
+
+        <!-- ================= RAILS & POWER ================= -->
+        <div class="page" id="rails-page">
+            <section class="card">
+                <h2>Sensor rails (live)</h2>
+                <div class="table-wrap">
+                    <table class="t">
+                        <thead><tr><th>#</th><th>Sensor</th><th>Rail</th><th>Rail volts</th><th>Fault flag</th><th>State</th><th></th></tr></thead>
+                        <tbody id="railRows"></tbody>
+                    </table>
+                </div>
+                <div class="row-inline" style="margin-top: 14px">
+                    <button class="btn" id="clearAll">Clear Latched Rail Faults</button>
+                </div>
+            </section>
+            <section class="card" id="railsCard">
+                <h2>Rail protection</h2>
+                <div class="row-inline">
+                    <div class="form-group"><label>On a rail fault</label><select id="rails.faultPolicy"><option value="0">Auto-retry (rail stays on, switch retries)</option><option value="1">Latch off until cleared</option></select></div>
+                    <div class="form-group narrow"><label>Fault must last (ms)</label><input type="number" id="rails.faultHoldMs" min="0" max="10000"></div>
+                    <div class="form-group narrow"><label>Rail low below (V)</label><input type="number" step="0.05" id="rails.railLowV" min="3" max="5"></div>
+                </div>
+                <div class="row-inline">
+                    <div class="form-group narrow"><label>Back-feed above (V)</label><input type="number" step="0.05" id="rails.busHighV" min="5.2" max="12"></div>
+                    <div class="form-group narrow"><label>Back-feed retry (s)</label><input type="number" id="rails.backfeedRetryS" min="1" max="600"></div>
+                </div>
+                <div class="help">Each sensor's 5 V comes through its own TPS4H160A switch (about 0.5 A limit). A short or overload raises its fault flag, or pulls the rail below the "rail low" level; after the hold time it counts as a fault. <b>Back-feed:</b> 12 V pushed onto a sensor's 5 V pin lifts the whole sensor bus, so every rail switches off. They come back once the bus is normal again, and never sooner than the retry time after it started.</div>
+            </section>
+            <section class="card" id="powerCard">
+                <h2>Power</h2>
+                <div class="row-inline">
+                    <div class="form-group narrow"><label>Battery low below (V)</label><input type="number" step="0.1" id="power.vbatLow"></div>
+                    <div class="form-group narrow"><label>Battery high above (V)</label><input type="number" step="0.1" id="power.vbatHigh"></div>
+                    <div class="form-group narrow"><label>No 12 V below (V)</label><input type="number" step="0.1" id="power.no12vBelow" min="3" max="10"></div>
+                </div>
+                <div class="help">Below "no 12 V" the board is on USB power alone: the sensor supply is off, so rail faults are not raised. Battery low / high go out in the CAN status frame.</div>
+            </section>
+        </div>
+
+        <!-- ================= CAN ================= -->
+        <div class="page" id="can-page">
+            <section class="card" id="canCard">
+                <h2>CAN bus</h2>
+                <div class="row-inline">
+                    <div class="form-group narrow"><label>Speed (kbit/s)</label><select id="can.kbps"><option value="125">125</option><option value="250">250</option><option value="500">500</option><option value="1000">1000</option></select></div>
+                    <div class="form-group"><label>Base id (hex, 29-bit)</label><input type="text" id="can.baseId" data-hex="1"></div>
+                    <div class="form-group narrow"><label>Board</label><select id="can.boardId"><option value="0">1</option><option value="1">2</option><option value="2">3</option><option value="3">4</option></select></div>
+                    <div class="form-group"><label>Termination</label><select id="can.term"><option value="0">Off</option><option value="1">120R on (last node on the bus)</option></select></div>
+                </div>
+                <div class="row-inline">
+                    <div class="form-group narrow"><label>Values every (ms)</label><input type="number" id="can.txPeriodMs" min="5" max="5000"></div>
+                    <div class="form-group narrow"><label>Status every (ms)</label><input type="number" id="can.statusPeriodMs" min="20" max="5000"></div>
+                </div>
+                <div class="help">Frames use 29-bit ids, base + board &times; 16 + 0..13, so they cannot collide with any 11-bit VAG / OBD frame on a shared bus. can2gauge's ADC tab must have the same base id (default 0AD2C000); board 2 shows there as sensors 9-16. A new speed applies at once.</div>
+            </section>
+            <section class="card">
+                <h2>Bus state</h2>
+                <div class="sysgrid">
+                    <div class="chip" id="cCanState"><div class="k">Controller</div><div class="v" id="vCanState">--</div></div>
+                    <div class="chip"><div class="k">Frames sent</div><div class="v" id="vCanTx">--</div></div>
+                    <div class="chip" id="cCanErr"><div class="k">Send errors</div><div class="v" id="vCanErr">--</div></div>
+                    <div class="chip"><div class="k">Error counters TX / RX</div><div class="v" id="vCanTec">--</div></div>
+                    <div class="chip"><div class="k">From a gauge</div><div class="v" id="vCanRx">--</div></div>
+                </div>
+            </section>
+            <section class="card">
+                <h2>Frames</h2>
+                <div class="table-wrap">
+                    <table class="t mono">
+                        <thead><tr><th>Id</th><th>What</th><th>Sent</th><th>Last data</th></tr></thead>
+                        <tbody id="frameRows"></tbody>
+                    </table>
+                </div>
+                <div class="help">Values are float32 big-endian in engineering units (NaN when a sensor is not valid). The status frame carries the valid / rail / fault / out-of-range masks, the flags, the sensor bus and the battery. Names, units and every channel setting are shared on the bus, so a can2gauge shows - and can edit - exactly what is set here (ids +12 / +13 come from the gauge).</div>
+            </section>
+        </div>
+
+        <!-- ================= SETTINGS ================= -->
+        <div class="page" id="settings-page">
+            <section class="card" id="wifiCard">
+                <h2>WiFi</h2>
+                <div class="row-inline">
+                    <div class="form-group"><label>Access point name</label><input type="text" id="wifi.apSsid" maxlength="23"></div>
+                    <div class="form-group"><label>Password (optional, 8+ characters)</label><input type="text" id="wifi.apPass" maxlength="23" placeholder="none - open network"></div>
+                </div>
+                <div class="help" style="margin-top:0">A new name or password applies when you leave the field: the access point restarts, so rejoin it under the new name. Joining your home / garage WiFi (for updates from GitHub) is on the <a href="#otaWifiStaCard" data-goto="ota">OTA tab</a>.</div>
+                <div class="help" id="wifiInfo"></div>
+            </section>
+            <section class="card" id="nowCard">
+                <h2>Wireless to can2gauge (ESP-NOW)</h2>
+                <div class="row-inline">
+                    <div class="form-group"><label>Broadcast over WiFi</label><select id="wifi.espNow"><option value="1">On - gauges without CAN see the sensors too</option><option value="0">Off - CAN only</option></select></div>
+                </div>
+                <div class="help" style="margin-top:0">Sends exactly what goes out on CAN (values, names, units, settings) as a WiFi broadcast as well, so a can2gauge with just power - no CAN wire - shows these sensors. No pairing. One-way: changing this board's settings from a gauge still needs CAN. The gauge must be on the same WiFi channel (both start on channel 1); joining a home network on either side can move it.</div>
+                <div class="help" id="nowInfo"></div>
+                <div class="row-inline">
+                    <div class="form-group"><label>Relay CAN frames to gauges</label><select id="wifi.canRelay"><option value="0">Off</option><option value="1">Every frame</option><option value="2">Each ID up to 50 per second</option><option value="3">Each ID up to 20 per second</option><option value="4">Each ID up to 10 per second</option></select></div>
+                </div>
+                <div class="help" style="margin-top:0">Sends every frame received from the car's CAN to can2gauge gauges over WiFi, so a gauge with power only - no CAN wire - reads the car as if it were wired: its CAN profile, the CAN monitor, DBC and user signals. A busy 500 kbit/s bus is around 2000 frames a second; if frames are lost, cap each ID's rate. It rides on the WiFi broadcast to gauges, so that has to be on too.</div>
+                <div class="help" id="canRelayStatus"></div>
+            </section>
+            <section class="card">
+                <h2>Device</h2>
+                <div class="row-inline">
+                    <button class="btn-secondary" id="rebootBtn">Reboot</button>
+                    <button class="btn-secondary" id="backupBtn">Download Settings Backup</button>
+                    <label class="btn-secondary" style="display:inline-block">Restore Backup<input type="file" id="restoreFile" accept=".json,application/json" hidden></label>
+                    <button class="btn danger" id="factoryBtn">Factory Reset</button>
+                </div>
+                <div class="help" id="deviceInfo"></div>
+            </section>
+        </div>
+
+        <!-- ================= OTA ================= -->
+        <div class="page" id="ota-page">
+            <!-- shared OTA tab (_SharedTheme/ota_tab.html v2), driven by ota.js -->
+            <article class="card">
+              <h2>Device</h2>
+              <div class="ota-info">
+                <div><span>Firmware</span><strong id="otaFwVersion">--</strong></div>
+                <div><span>Web UI</span><strong id="otaFsVersion">--</strong></div>
+                <div><span>Board</span><strong id="otaBoard">--</strong></div>
+                <div><span>Updates</span><strong id="otaSafe">--</strong></div>
+              </div>
+              <p class="hint" id="otaSafeHint"></p>
+            </article>
+            <article class="card">
+              <h2>Update from GitHub</h2>
+              <div class="ota-info">
+                <div><span>Installed</span><strong id="updInstalled">--</strong></div>
+                <div><span>Latest</span><strong id="updLatest">--</strong></div>
+                <div><span>Status</span><strong id="updState">Not checked</strong></div>
+              </div>
+              <p class="hint">This browser needs internet while it can still reach the controller: join the controller to your
+                router in <a href="#otaWifiStaCard" id="updGoBridge">Home WiFi</a> below, put this phone on the same network and
+                open the address that card shows. On the controller's own access point alone most phones drop mobile data.
+                Keep this page open until the device has rebooted. Release channel: <code id="updRepo">--</code></p>
+              <div class="ota-row">
+                <button id="updCheckBtn" class="btn primary">Check for updates</button>
+                <button id="updBridgeBtn" class="btn" hidden>Set up Home WiFi</button>
+                <label class="upd-beta"><input type="checkbox" id="updShowAll"> Show beta / older versions</label>
+              </div>
+              <div id="updStatus" class="status-line">Idle</div>
+              <div id="updPicker" hidden>
+                <label class="ota-field">Version
+                  <select id="updVersion"></select>
+                </label>
+                <div id="updNotes" class="upd-notes"></div>
+                <div class="ota-row">
+                  <button id="updInstallBtn" class="btn primary">Install selected</button>
+                </div>
+              </div>
+              <div class="ota-steps" id="updSteps">
+                <div class="ota-step" data-step="dlfs"><span class="ota-step-num">1</span> Get UI</div>
+                <div class="ota-step" data-step="fs"><span class="ota-step-num">2</span> Flash UI</div>
+                <div class="ota-step" data-step="verify"><span class="ota-step-num">3</span> Verify</div>
+                <div class="ota-step" data-step="dlfw"><span class="ota-step-num">4</span> Get FW</div>
+                <div class="ota-step" data-step="fw"><span class="ota-step-num">5</span> Flash FW</div>
+                <div class="ota-step" data-step="reboot"><span class="ota-step-num">6</span> Reboot</div>
+              </div>
+              <div class="ota-progress" id="updProgressWrap" hidden>
+                <div class="ota-progress-bar" id="updProgressBar"></div>
+                <span class="ota-progress-label" id="updProgressLabel">0%</span>
+              </div>
+            </article>
+            <article class="card" id="otaWifiStaCard">
+              <h2>Home WiFi (Bridge Mode)</h2>
+              <p class="hint">Join the controller to your home or garage router; its own access point keeps running. Once it
+                shows <em>Connected</em>, put this phone on the same network, open the address shown and press
+                <strong>Check for updates</strong> again.</p>
+              <p class="status-line" id="otaWifiStaStatus">--</p>
+              <div class="ota-wifi-row">
+                <input type="text" id="otaWifiStaSsidInput" placeholder="Home network name" maxlength="32" autocomplete="off" spellcheck="false" list="otaWifiStaSsidList">
+                <datalist id="otaWifiStaSsidList"></datalist>
+                <button class="btn ota-icon" id="otaWifiStaScan" title="Scan for networks">&#128269;</button>
+              </div>
+              <div class="ota-wifi-row">
+                <input type="password" id="otaWifiStaPasswordInput" placeholder="Home network password (blank = open)" maxlength="64" autocomplete="new-password">
+                <button class="btn ota-icon" id="otaWifiStaPasswordToggle" title="Show / hide password">&#128065;</button>
+              </div>
+              <div class="ota-row">
+                <button class="btn" id="otaWifiStaSave">Save &amp; Apply</button>
+                <button class="btn" id="otaWifiStaReset">Disable</button>
+              </div>
+            </article>
+            <article class="card">
+              <h2>Update from Files</h2>
+              <p class="hint">No internet needed here. Download <code>littlefs.bin</code> and <code>firmware.bin</code> from the
+                newest <code>V…</code> folder under <code>Releases/</code> on GitHub, then upload them here:
+                <strong>Filesystem</strong> (littlefs.bin, the web interface) first, then <strong>Firmware</strong>
+                (firmware.bin). The device reboots once the firmware upload completes.</p>
+              <div class="ota-steps" id="otaSteps">
+                <div class="ota-step" data-step="filesystem"><span class="ota-step-num">1</span> Filesystem</div>
+                <div class="ota-step" data-step="firmware"><span class="ota-step-num">2</span> Firmware</div>
+              </div>
+              <label class="ota-field">Update Type
+                <select id="otaType">
+                  <option value="filesystem">Filesystem (web UI)</option>
+                  <option value="firmware">Firmware (application)</option>
+                </select>
+              </label>
+              <label class="ota-field">Binary (.bin)
+                <input id="otaBin" type="file" accept=".bin,application/octet-stream">
+              </label>
+              <div class="ota-progress" id="otaProgressWrap" hidden>
+                <div class="ota-progress-bar" id="otaProgressBar"></div>
+                <span class="ota-progress-label" id="otaProgressLabel">0%</span>
+              </div>
+              <div class="ota-row">
+                <button id="otaUploadBtn" class="btn primary">Upload</button>
+              </div>
+              <div id="otaStatus" class="status-line">Idle</div>
+            </article>
+        </div>
+    </div>
+    <script src="app.js?v=1.4.1"></script>
+    <script src="log.js?v=1.4.1"></script>
+    <script src="ota.js?v=1.4.1"></script>
+</body>
+
+</html>

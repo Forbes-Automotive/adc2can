@@ -1,0 +1,23 @@
+{
+  "product": "adc2can",
+  "latest": "1.4.1",
+  "releases": [
+    {
+      "version": "1.4.1",
+      "channel": "stable",
+      "date": "2026-10-31",
+      "ota": true,
+      "notes": "First public release: 8 sensors to CAN and ESP-NOW (with CAN relay), shared settings and dial ranges with can2gauge, 12 MB logger with CSV, 10-minute trends, protected 5 V rails. 1.4.1: Title Case buttons, phone-friendly rails / logs tables.",
+      "firmware": {
+        "path": "V1.4.1/firmware.bin",
+        "size": 1207920,
+        "sha256": "146d0c7a611830b8060de7d94f05041ec738456e3400ae7d62de1cc40de835fd"
+      },
+      "filesystem": {
+        "path": "V1.4.1/littlefs.bin",
+        "size": 393216,
+        "sha256": "4f4a838b66f67c0a531754c86daf540dfb5e827e93a990ec627759bf95b1557f"
+      }
+    }
+  ]
+}
