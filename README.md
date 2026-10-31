@@ -10,47 +10,42 @@ set on the adc2can show up on the gauge by themselves: there is nothing to set u
 It also keeps its own records: a **12 MB data logger** (every sensor, up to 50 times a second, CSV download) and
 **ten-minute trend graphs**, all from a phone over the board's own WiFi. Everything is set up from that web page, with
 no laptop or app needed. It runs on an **ESP32-S3** (16 MB flash) under the Arduino framework, and the whole project
-(firmware, web UI, PCB, enclosure and simulator) is open source.
+(firmware, web UI, PCB and enclosure) is open source.
 
 ![adc2can web UI: dashboard, sensors, logging, trends, rails and power, CAN, WiFi / ESP-NOW and OTA](images/adc2canUI.png)
 
 <p align="center">
-  <img src="images/pcb-top.png" alt="The adc2can board (revhb): eight sensor sockets down the sides, the two 12 V / CAN plugs at the top, the ESP32-S3 antenna at the bottom" width="400">
-  &nbsp;
-  <img src="images/sim-bench.png" alt="The adc2can simulator: the board drawing with eight sensors plugged in, the board readings and the bench's sensor sockets" width="430">
+  <img src="images/pcb-top.png" alt="The adc2can board (revhb): eight sensor sockets down the sides, the two 12 V / CAN plugs at the top, the ESP32-S3 antenna at the bottom" width="420">
 </p>
 
 > [!NOTE]
 > **Status (firmware 1.4.1, not yet released; board revhb "V1.0").** The firmware is feature complete for a first
-> release and everything in the web UI runs today in the bundled [simulator](#simulator), which every image in this
-> README was made from. See [Status and bench items](#status-and-bench-items) for what still wants its first check on a
+> release and everything in the web UI runs today in the bundled simulator (`sim/`), which every web UI image in this
+> README was made from. See [Status and Bench Items](#status-and-bench-items) for what still wants its first check on a
 > real board.
 
 ---
 
 ## Contents
 
-- [Features at a glance](#features-at-a-glance)
-- [How it all links together](#how-it-all-links-together) - one setting, every place it shows up
-- [Getting started](#getting-started) - wiring, first connection, setting up a sensor
+- [Features at a Glance](#features-at-a-glance)
+- [How It All Links Together](#how-it-all-links-together) - one setting, every place it shows up
+- [Getting Started](#getting-started) - wiring, first connection, setting up a sensor
 - [Sensors](#sensors) - linear, presets, table, NTC, ratiometric, warnings, smoothing
 - [Dashboard](#dashboard) - live values, dials and their ranges, the board, alerts
-- [Logging and trends](#logging-and-trends) - the 12 MB recorder, CSV export, the 10-minute graphs
-- [Sensor rails and power](#sensor-rails-and-power) - short-circuit and 12 V back-feed protection
+- [Logging and Trends](#logging-and-trends) - the 12 MB recorder, CSV export, the 10-minute graphs
+- [Sensor Rails and Power](#sensor-rails-and-power) - short-circuit and 12 V back-feed protection
 - [CAN](#can) - ids, frames, two boards on one bus
 - [WiFi to can2gauge](#wifi-to-can2gauge) - ESP-NOW, and relaying the car's CAN to a gauge
 - [With can2gauge](#with-can2gauge) - what the gauge shows, and what it can change
-- [Settings and backup](#settings-and-backup)
+- [Settings and Backup](#settings-and-backup)
 - [Updating](#updating)
 - [Hardware](#hardware) - the board, plugs, pin map, flash layout, enclosure
-- [Simulator](#simulator)
-- [Repository layout](#repository-layout)
-- [Status and bench items](#status-and-bench-items)
-- [Version history](#version-history)
+- [Status and Bench Items](#status-and-bench-items)
 
 ---
 
-## Features at a glance
+## Features at a Glance
 
 | Feature | Detail |
 |---|---|
@@ -68,11 +63,10 @@ no laptop or app needed. It runs on an **ESP32-S3** (16 MB flash) under the Ardu
 | WiFi to can2gauge | Every CAN frame also broadcast over **ESP-NOW**, so a gauge with **power only** shows the sensors. Optional **CAN relay**: the car's own CAN frames to the gauge over WiFi too |
 | Web UI | 7 tabs on the board's own open access point, settings save as you change them, shared Forbes Automotive theme |
 | Updates | Over the air from GitHub or from files (web UI + firmware), 60 s rollback guard |
-| Simulator | The real web UI against a simulated board, sensors, supply, CAN bus and can2gauge on your PC (Python only) |
 
 ---
 
-## How it all links together
+## How It All Links Together
 
 Most settings on the adc2can turn up in more than one place. This is the one picture to keep in mind:
 
@@ -116,14 +110,19 @@ again, so the gauge and the board never disagree for long.
 
 ---
 
-## Getting started
+## Getting Started
 
 1. **Wire it.** One of the two 4-pin plugs takes 12 V, ground, CAN-H and CAN-L from the can2gauge chain (or the car);
    the other passes all four straight on to the next device. No CAN wire? Power alone is enough for a can2gauge to show
    the sensors over WiFi (see [WiFi to can2gauge](#wifi-to-can2gauge)).
 2. **Plug in the sensors.** Each 3-pin socket: pin 1 switched 5 V, pin 2 signal, pin 3 ground. A sensor with its own
    supply (a wideband controller's output, an EGT amplifier) only needs pins 2 and 3. An NTC temperature sender needs
-   the channel's pull-up resistor **R_PUn** fitted (2.2k for a Bosch sender).
+   a **2.2k pull-up resistor** from pin 1 to pin 2: put it in the loom or plug, or fit the board's own **R_PUn** (R32,
+   R37 ... R67 for sensors 1-8, left empty as standard). The picture below shows all three.
+<p align="center">
+  <img src="images/pcb-connectors.png" alt="adc2can plugs and wiring: J9 / J10 12 V and CAN, J1-J8 sensor plugs, and three wiring examples: a 3-wire sender, a sensor with its own supply, and an NTC sender with an external 2.2k pull-up resistor from pin 1 to pin 2" width="800">
+</p>
+
 3. **Connect.** Join the open WiFi network **`adc2can-XXXX`** (no password until you set one) and browse to
    **http://192.168.1.1** or **http://adc2can.local** (a second board is `adc2can2.local`).
 4. **Set up each sensor** on the **Sensors** tab: name, unit and a preset (or your own scaling). It saves as you type
@@ -150,10 +149,11 @@ voltage corrected to a 5.000 V supply (ratiometric sensors) and the value it wor
     10-20) and lambda (0.68-1.36), and an EGT amplifier (0-5 V = 0-1250 °C).
   - **Table**: up to 8 `volts:value` points with straight lines between them, for senders that aren't straight
     (`0.5:0, 2.5:5, 4.5:10`).
-  - **NTC**: a thermistor to the channel's own 5 V rail through its pull-up R_PUn, worked out with the beta model
+  - **NTC**: a thermistor fed from the channel's own 5 V rail through a 2.2k pull-up (external, or R_PUn on the
+    board), worked out with the beta model
     (R25, beta and the pull-up value are set here; the board's 10k / 11k input divider is allowed for).
 - **Low warn / High warn**: blank for none. Outside them, the sensor shows "out of range" (see
-  [How it all links together](#how-it-all-links-together) for everywhere that goes).
+  [How It All Links Together](#how-it-all-links-together) for everywhere that goes).
 - **Decimals** (0-4), **Smoothing** (1 = none to 250 = heavy) and **Gain trim** (0.8-1.2, for the divider's resistor
   tolerance).
 - **5 V Rail On**: switch the socket's supply on. Leave it off for an empty socket.
@@ -195,7 +195,7 @@ moves an Auto range with it.
 
 ---
 
-## Logging and trends
+## Logging and Trends
 
 The **Logging** tab has the recorder, the logs stored on the board, and the trend graphs.
 
@@ -243,7 +243,7 @@ not. The amber dashed lines are the sensor's low / high warnings. Hover or touch
 
 ---
 
-## Sensor rails and power
+## Sensor Rails and Power
 
 Each sensor's 5 V comes through its own channel of a TPS4H160A smart switch, current-limited to about 0.5 A, with a
 fault flag the board reads through a TCA9554 and a voltage readback on the ESP32. The **Rails & Power** tab shows them
@@ -349,12 +349,9 @@ What the gauge does with the adc2can, end to end:
 - Version notes: ESP-NOW needs can2gauge 0.8.0+, and the shared dial range 0.36.4+. Older gauges ignore what they don't
   know.
 
-The can2gauge simulator runs an adc2can on its virtual bus with the same sensors as this one's, so the pair can be
-tried together on a PC.
-
 ---
 
-## Settings and backup
+## Settings and Backup
 
 - **WiFi**: the access point's name and an optional password (8+ characters; blank = open). A new name or password
   applies when you leave the field, and the access point restarts, so rejoin it under the new name. The card shows the
@@ -397,7 +394,7 @@ previous one. Sensors keep reading and going out on CAN while an update is writt
 
 ## Hardware
 
-### The board
+### The Board
 
 <p align="center">
   <img src="images/pcb-schematic.png" alt="adc2can revhb schematic: power in, buck, CAN, USB, ESP32-S3, the two ADS1115s and TCA9554, the TPS4H160A sensor rails and the eight sensor inputs" width="800">
@@ -413,17 +410,20 @@ previous one. Sensors keep reading and going out on CAN while an update is writt
 - **Rails**: 2 × TPS4H160A (4 channels each), about 0.51 A current limit per channel, fault flags to a TCA9554, each rail
   read back by the ESP32.
 - **Inputs**: 10k / 11k divider (0-6.3 V range), filter and clamp diodes into 2 × ADS1115 (16-bit, ±4.096 V range).
-  Pull-up **R_PUn** (2.2k, not fitted as standard) from each channel's own rail for an NTC sender.
+  Pull-up **R_PUn** (R32, R37 ... R67; 2.2k, not fitted as standard) from each channel's own rail for an NTC sender,
+  or the same 2.2k fitted externally between the plug's pins 1 and 2.
 - **4-layer PCB**, 4 × M3 mounting holes, antenna keep-out at the board edge.
 
 ### Plugs
 
 | Plug | Pin 1 | Pin 2 | Pin 3 | Pin 4 |
 |---|---|---|---|---|
-| Power / CAN (2 × JST PA-4, wired straight through) | 12 V | GND | CAN-H | CAN-L |
-| Sensor 1-8 (8 × JST PA-3) | Switched 5 V | Signal (0-6.3 V) | GND | |
+| J9 / J10: power / CAN (JST PA-4, wired straight through) | 12 V | GND | CAN-H | CAN-L |
+| J1-J8: sensors 1-8 (JST PA-3) | Switched 5 V | Signal (0-6.3 V) | GND | |
 
-### ESP32-S3 pin map
+The wiring examples are in [Getting Started](#getting-started).
+
+### ESP32-S3 Pin Map
 
 | GPIO | Use | GPIO | Use |
 |---|---|---|---|
@@ -435,7 +435,7 @@ previous one. Sensors keep reading and going out on CAN while an update is writt
 
 (`src/adc2can_pins.h`, matching the revhb board.)
 
-### Flash layout
+### Flash Layout
 
 `partitions_16mb.csv`: two 1.75 MB firmware slots (the firmware is about 1.2 MB), a 384 kB web UI partition and the
 **12 MB logs** partition. The logs partition has its own type, so neither a web UI update nor the release tools ever
@@ -447,59 +447,9 @@ touch it.
 
 ---
 
-## Simulator
+## Status and Bench Items
 
-Try every sensor, setting and fault before anything is flashed, with Python 3 only (no compiler and no hardware):
-
-```
-python sim/run.py        opens http://127.0.0.1:8090/sim/ (the bench); the real web UI is at http://127.0.0.1:8090/
-```
-
-- **`/sim/`** is the bench: the board drawing (rail LEDs, status LED, what's plugged in and its value), a 1.8T on a 40 s
-  drive cycle driving the sensors, sensors of every kind on any socket, wiring faults (5 V shorted, 12 V on the 5 V pin,
-  signal shorted or open), USB-only power, failed chips, and a CAN bus with a can2gauge on it (or nothing, or a short).
-- **`/`** is the **real web UI** (`data/`, unchanged) talking to the simulated board. Logging, CSV export, trends, the
-  CAN relay status and every setting work as on the board.
-- **can2gauge tab**: what a gauge hears, decoded the gauge's way, and buttons to send from the gauge (request the
-  config, clear a fault, rename a sensor, set its warnings).
-- `/sim/reel.html` is a 1080 × 1920 portrait frame of the web UI for screen recordings.
-
-See [sim/README.md](sim/README.md).
-
----
-
-## Repository layout
-
-| Folder | What |
-|---|---|
-| `src/`, `include/`, `platformio.ini`, `partitions_16mb.csv` | ESP32-S3 firmware (PlatformIO, Arduino), with the shared Forbes Automotive WiFi and OTA modules and the shared ESP-NOW protocol headers |
-| `data/` | The web UI (LittleFS): Forbes Automotive theme, every setting, the shared OTA tab |
-| `sim/` | The simulator |
-| `pcb/` | EasyEDA Pro project for the current board (revhb); older revisions in `pcb/old/` |
-| `enclosure/` | Housing and base STLs |
-| `docs/` | Design write-up, CAN protocol, board revision notes and reviews |
-| `tools/` | `make_release.py` (the shared release packager), the README image tools, and the scripts used to generate and check the board |
-| `images/` | The README images |
-| `Releases/` | Released firmware and web UI images, `releases.json` (what the OTA tab reads) |
-| `can2gauge_integration/` | The first can2gauge receiver patch, kept for reference; can2gauge now has its own, newer receiver |
-
-### Regenerating the README images
-
-Every web UI image is the real `data/` folder rendered in headless Chrome against data recorded from the simulator:
-
-```
-python tools/readme_shots/adc2can_api.py                         records the sim (12 minutes of driving, three logs)
-python tools/readme_shots.py tools/readme_shots/adc2can.json     the phone shots and the overview poster
-python tools/readme_shots/board_images.py                        the PCB, schematic and simulator bench images
-```
-
-`tools/readme_shots.py` is a copy of the shared `_SharedTheme/tools/readme_shots.py`.
-
----
-
-## Status and bench items
-
-The firmware runs in the simulator end to end. These want their first check (or a re-check) on a real revhb board:
+The firmware runs end to end in the simulator. These want their first check (or a re-check) on a real revhb board:
 
 - **Bring-up on revhb**: the pin map moved to the revhb board's in firmware 1.3.x (`src/adc2can_pins.h`). Rails,
   readbacks, CAN and the status LED on the real board.
@@ -508,20 +458,6 @@ The firmware runs in the simulator end to end. These want their first check (or 
 - **NTC senders** with R_PUn fitted, against a thermometer.
 - **Logger**: a long 50 Hz log in the car, and auto-start across many key cycles.
 - **ESP-NOW** range and the **CAN relay** on a busy 500 kbit/s car bus, with a can2gauge on power only.
-
----
-
-## Version history
-
-- **1.4.1** (unreleased): Title Case buttons, the Display options help says where the dial range is saved, the rails
-  and logs tables fit a phone screen (CSV / Raw / Delete stacked, no Records column on a phone); the simulator has the CAN relay setting and status; README rewritten with
-  images.
-- **1.4**: each sensor's **Dial Min / Max** saved on the board (blank = Auto from the scaling) and sent to can2gauge
-  (two more config parts, 32 per sensor), so a gauge page uses the same range. Settings from 1.3 carry over.
-- **1.3**: every CAN frame also over **ESP-NOW**, so a gauge with power only shows the sensors; later 1.3 builds added
-  the **CAN relay** and moved the pin map to the revhb board. Settings from 1.2 carry over.
-- **1.1**: every sensor's settings shared over CAN (protocol 2), so can2gauge shows and edits them.
-- **1.0**: first firmware.
 
 ---
 
