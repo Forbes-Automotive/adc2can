@@ -1,7 +1,24 @@
 {
   "product": "adc2can",
-  "latest": "1.4.1",
+  "latest": "1.5.0",
   "releases": [
+    {
+      "version": "1.5.0",
+      "channel": "stable",
+      "date": "2026-11-06",
+      "ota": true,
+      "notes": "11-bit CAN output for a dash, logger or ECU: switch on the CAN tab, sensor values only, 8 or 16 bits each, configurable output address, per-sensor Scale and Offset (blank = Auto). Normal 29-bit CAN and WiFi to can2gauge unchanged. Settings from 1.4 carry over.",
+      "firmware": {
+        "path": "V1.5.0/firmware.bin",
+        "size": 1209824,
+        "sha256": "923bc2111ebbe0cd437d5829e4fac1757b991b8c6fb4ccc1104622c78a3b6aa6"
+      },
+      "filesystem": {
+        "path": "V1.5.0/littlefs.bin",
+        "size": 393216,
+        "sha256": "8a6db69107cfc1b2a6d309ddfed7ec936e09e3c3b165f051feac871332b3bf5b"
+      }
+    },
     {
       "version": "1.4.1",
       "channel": "stable",
