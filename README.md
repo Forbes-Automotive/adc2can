@@ -42,6 +42,7 @@ no laptop or app needed. It runs on an **ESP32-S3** (16 MB flash) under the Ardu
 - [Updating](#updating)
 - [Hardware](#hardware) - the board, plugs, pin map, flash layout, enclosure
 - [Status and Bench Items](#status-and-bench-items)
+- [Version History](#version-history)
 
 ---
 
@@ -458,6 +459,14 @@ The firmware runs end to end in the simulator. These want their first check (or 
 - **NTC senders** with R_PUn fitted, against a thermometer.
 - **Logger**: a long 50 Hz log in the car, and auto-start across many key cycles.
 - **ESP-NOW** range and the **CAN relay** on a busy 500 kbit/s car bus, with a can2gauge on power only.
+
+---
+
+## Version History
+
+- **1.5.1** – phone touch UI: no long-press copy menu; scrolling the page never moves a slider (shared touchui.js/css)
+- **1.5.0** – 11-bit CAN output for a dash, logger or ECU (switched on the CAN tab), per-sensor CAN Scale and Offset
+- **1.4.1** – first public release
 
 ---
 

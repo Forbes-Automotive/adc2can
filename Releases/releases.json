@@ -1,7 +1,24 @@
 {
   "product": "adc2can",
-  "latest": "1.5.0",
+  "latest": "1.5.1",
   "releases": [
+    {
+      "version": "1.5.1",
+      "channel": "stable",
+      "date": "2026-11-22",
+      "ota": true,
+      "notes": "Phone touch UI: no long-press copy menu; scrolling the page never moves a slider (shared touchui.js/css). Firmware otherwise unchanged; settings carry over.",
+      "firmware": {
+        "path": "V1.5.1/firmware.bin",
+        "size": 1209824,
+        "sha256": "99039b2c2c01eecce3cfd30dc42eec689c71b34ebb133257b7710c044cd61d82"
+      },
+      "filesystem": {
+        "path": "V1.5.1/littlefs.bin",
+        "size": 393216,
+        "sha256": "2958260c30eec1484b1bbb9ce5ad9dd119c4d219774762bc1082622c0a25d8d3"
+      }
+    },
     {
       "version": "1.5.0",
       "channel": "stable",
